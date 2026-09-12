@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Memory Management Visualizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header class="header">
+    <h1>Memory Management<br>Visualizer</h1>
+    <p>Paging · Segmentation · Virtual Memory</p>
+  </header>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('paging',this)">⬡ Paging</button>
+    <button class="tab-btn seg"    onclick="switchTab('segmentation',this)">⬡
+Segmentation</button>
+    <button class="tab-btn virt"   onclick="switchTab('virtual',this)">⬡ Virtual Memory</button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       TAB 1: PAGING
+  ══════════════════════════════════════════════ -->
+  <div id="tab-paging" class="tab-content active">
+
+    <div class="panel">
+      <div class="panel-title">Paging Configuration</div>
+      <div class="controls-grid g3">
+        <div class="input-wrap">
+          <label>Page Reference String</label>
+          <input id="pages" placeholder="e.g. 1,2,3,1,4,5">
+        </div>
+        <div class="input-wrap">
+          <label>Number of Frames</label>
+          <input id="frames" placeholder="e.g. 3" type="number" min="1">
+        </div>
+        <div class="input-wrap">
+          <label>Algorithm</label>
+          <select id="algo">
+             <option value="fifo">FIFO — First In First Out</option>
+             <option value="lru">LRU — Least Recently Used</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary"    onclick="runAlgorithm()">▶ Run Simulation</button>
+        <button class="btn-secondary" onclick="nextStep()">⟶Next Step</button>
+        <button class="btn-danger"     onclick="resetPaging()">𝐺 Reset</button>
+
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Memory Frames</div>
+      <div id="memory">
+        <div class="empty-state">Run the simulation to visualize memory frames</div>
+      </div>
+      <div class="step-info" id="stepInfo"></div>
+      <div class="step-bar"><div class="step-bar-fill" id="stepFill"></div></div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--gold)"></div>
+Newly Loaded</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>
+Page Replaced</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>
+Cache Hit</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Simulation Results</div>
+      <div class="stats-bar s3">
+        <div class="stat-card"><div class="num" id="totalFaults" style="color:var(--red)">—
+</div><div class="lbl">Page Faults</div></div>
+        <div class="stat-card"><div class="num" id="totalHits"     style="color:var(--green)">—
+</div><div class="lbl">Page Hits</div></div>
+        <div class="stat-card"><div class="num" id="hitRatio"      style="color:var(--cyan)">—
+</div><div class="lbl">Hit Ratio</div></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+           <thead><tr><th>#</th><th>Page</th><th>Frames State</th><th>Status</th></tr></thead>
+           <tbody id="resultBody"><tr><td colspan="4" class="empty-state">No data
+yet</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Algorithm Comparison — FIFO vs LRU</div>
+      <div class="chart-wrap"><canvas id="chart"></canvas></div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       TAB 2: SEGMENTATION
+  ══════════════════════════════════════════════ -->
+  <div id="tab-segmentation" class="tab-content">
+
+    <div class="panel seg-panel">
+      <div class="panel-title seg">Segmentation Setup</div>
+      <div class="controls-grid g2" style="margin-bottom:14px">
+        <div class="input-wrap">
+          <label>Total Memory Size (bytes)</label>
+          <input id="memSize" type="number" placeholder="e.g. 1024" min="64">
+        </div>
+        <div class="input-wrap">
+          <label>Allocation Strategy</label>
+          <select id="allocStrategy">
+             <option value="first">First Fit</option>
+             <option value="best">Best Fit</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="controls-grid g3">
+        <div class="input-wrap">
+          <label>Segment Name</label>
+          <input id="segName" placeholder="e.g. Code / Stack / Heap">
+        </div>
+        <div class="input-wrap">
+          <label>Segment Size (bytes)</label>
+          <input id="segSize" type="number" placeholder="e.g. 200" min="1">
+        </div>
+        <div class="input-wrap" style="justify-content:flex-end">
+          <label>&nbsp;</label>
+          <button class="btn-purple" onclick="addSegment()">+ Add Segment</button>
+        </div>
+      </div>
+
+      <div style="margin:16px 0 8px">
+        <div class="panel-title seg" style="margin-bottom:10px">Segment List</div>
+        <div class="seg-list" id="segList">
+           <div class="empty-state" style="padding:14px">No segments added yet</div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-green" onclick="allocateSegments()">▶ Allocate Memory</button>
+        <button class="btn-danger" onclick="resetSegmentation()">𝐺 Reset</button>
+      </div>
+    </div>
+
+    <div class="panel seg-panel" id="segResultPanel" style="display:none">
+      <div class="panel-title seg">Segment Table</div>
+      <div class="stats-bar s4" style="margin-bottom:20px">
+        <div class="stat-card"><div class="num" id="segTotalMem" style="color:var(--purple)">—
+</div><div class="lbl">Total Memory</div></div>
+        <div class="stat-card"><div class="num" id="segUsed"       style="color:var(--red)">—
+</div><div class="lbl">Used (bytes)</div></div>
+        <div class="stat-card"><div class="num" id="segFree"       style="color:var(--green)">—
+</div><div class="lbl">Free (bytes)</div></div>
+        <div class="stat-card"><div class="num" id="segCount"      style="color:var(--cyan)">—
+</div><div class="lbl">Segments</div></div>
+      </div>
+      <div class="table-wrap" style="margin-bottom:20px">
+        <table>
+          <thead>
+             <tr>
+               <th class="seg-th">Seg #</th>
+               <th class="seg-th">Name</th>
+               <th class="seg-th">Base Address</th>
+               <th class="seg-th">Limit</th>
+               <th class="seg-th">Size</th>
+               <th class="seg-th">Status</th>
+             </tr>
+          </thead>
+          <tbody id="segTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="panel-title seg">Memory Map</div>
+      <div class="mem-map" id="memMap"></div>
+    </div>
+
+    <div class="panel seg-panel" id="segTransPanel" style="display:none">
+      <div class="panel-title seg">Address Translation</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.7">
+        Enter a logical address (segment number + offset) to translate it to a physical address.
+        The formula is: <span style="color:var(--purple)">Physical Address = Base + Offset</span>.
+        A <span style="color:var(--red)">Segment Fault</span> occurs if offset ≥ segment limit.
+      </p>
+
+      <div class="controls-grid g3">
+        <div class="input-wrap">
+           <label>Segment Number</label>
+           <input id="transSegNum" type="number" placeholder="e.g. 0" min="0">
+        </div>
+        <div class="input-wrap">
+           <label>Offset (bytes)</label>
+           <input id="transOffset" type="number" placeholder="e.g. 50" min="0">
+        </div>
+        <div class="input-wrap" style="justify-content:flex-end">
+           <label>&nbsp;</label>
+           <button class="btn-purple" onclick="translateAddress()">→ Translate</button>
+        </div>
+      </div>
+      <div class="translate-result" id="transResult"></div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       TAB 3: VIRTUAL MEMORY
+  ══════════════════════════════════════════════ -->
+  <div id="tab-virtual" class="tab-content">
+
+    <div class="panel virt-panel">
+      <div class="panel-title virt">Virtual Memory Configuration</div>
+      <div class="controls-grid g4">
+        <div class="input-wrap">
+           <label>Virtual Pages</label>
+           <input id="vmVPages" type="number" placeholder="e.g. 8" min="2" max="24">
+        </div>
+        <div class="input-wrap">
+           <label>Physical Frames</label>
+           <input id="vmFrames" type="number" placeholder="e.g. 4" min="1">
+        </div>
+        <div class="input-wrap">
+           <label>Page Size (bytes)</label>
+           <input id="vmPageSize" type="number" placeholder="e.g. 256" min="1">
+        </div>
+        <div class="input-wrap">
+           <label>Algorithm</label>
+           <select id="vmAlgo">
+             <option value="fifo">FIFO</option>
+             <option value="lru">LRU</option>
+           </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-orange" onclick="initVirtualMemory()">▶ Initialize System</button>
+        <button class="btn-danger" onclick="resetVirtualMemory()">𝐺 Reset</button>
+      </div>
+    </div>
+
+    <div class="panel virt-panel" id="vmMainPanel" style="display:none">
+      <div class="panel-title virt">Access Page</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.7">
+        Enter a virtual page number to simulate a memory access. The system will check the
+        <span style="color:var(--orange)">TLB</span> first, then the
+        <span style="color:var(--cyan)">Page Table</span>. If the page is not in RAM, a
+        <span style="color:var(--red)">Page Fault</span> occurs and the replacement algorithm
+loads it.
+      </p>
+      <div class="controls-grid g2">
+        <div class="input-wrap">
+           <label>Virtual Page Number</label>
+           <input id="vmAccessPage" type="number" placeholder="Enter page number" min="0">
+
+        </div>
+        <div class="input-wrap" style="justify-content:flex-end">
+           <label>&nbsp;</label>
+           <button class="btn-orange" onclick="accessPage()">→ Access Page</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="vmVisPanel" style="display:none">
+      <div class="stats-bar s4" style="margin-bottom:20px">
+        <div class="stat-card"><div class="num" id="vmFaults"  style="color:var(--red)">0</div><div class="lbl">Page Faults</div></div>
+        <div class="stat-card"><div class="num" id="vmHits"    style="color:var(--green)">0</div><div class="lbl">Page Hits</div></div>
+        <div class="stat-card"><div class="num" id="vmTlbHits" style="color:var(--orange)">0</div><div class="lbl">TLB Hits</div></div>
+        <div class="stat-card"><div class="num" id="vmRatio"   style="color:var(--cyan)">—
+</div><div class="lbl">Hit Ratio</div></div>
+      </div>
+
+      <!-- RAM + DISK -->
+      <div class="vm-two-col" style="margin-bottom:20px">
+        <div class="panel virt-panel" style="margin-bottom:0">
+          <div class="panel-title virt">RAM — Physical Frames</div>
+          <div class="vm-frame-grid" id="vmRamGrid"></div>
+        </div>
+        <div class="panel virt-panel" style="margin-bottom:0">
+          <div class="panel-title virt">Disk — Virtual Pages</div>
+          <div class="disk-grid" id="vmDiskGrid"></div>
+          <p style="font-size:10px;color:var(--muted);margin-top:12px;letter-spacing:1px">
+             <span style="color:var(--cyan)">■</span> In RAM &nbsp;
+             <span style="color:var(--muted)">■</span> On Disk
+          </p>
+        </div>
+      </div>
+
+      <!-- Page Table + TLB -->
+      <div class="vm-two-col" style="margin-bottom:20px">
+        <div class="panel virt-panel" style="margin-bottom:0">
+          <div class="panel-title virt">Page Table</div>
+          <div class="table-wrap">
+             <table>
+               <thead>
+                 <tr>
+                   <th class="virt-th">Virtual Page</th>
+                   <th class="virt-th">Frame #</th>
+                   <th class="virt-th">Valid Bit</th>
+                   <th class="virt-th">Location</th>
+                 </tr>
+               </thead>
+               <tbody id="vmPageTable"></tbody>
+             </table>
+          </div>
+        </div>
+        <div class="panel virt-panel" style="margin-bottom:0">
+          <div class="panel-title virt">TLB — Translation Lookaside Buffer</div>
+          <div class="tlb-row tlb-header">
+             <span>Virtual Page</span><span>Frame</span><span>Result</span>
+          </div>
+          <div id="vmTlbList">
+             <div class="empty-state" style="padding:16px">TLB is empty</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Access Log -->
+
+      <div class="panel virt-panel">
+        <div class="panel-title virt">Access Log</div>
+        <div class="access-log" id="vmAccessLog">
+           <div class="empty-state" style="padding:12px">No accesses yet</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+<script src="script.js"></script>
+</body>
+</html>
